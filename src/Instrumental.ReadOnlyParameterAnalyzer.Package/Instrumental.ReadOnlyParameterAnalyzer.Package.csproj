@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>Instrumental.ReadOnlyParameterAnalyzer</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
+    <Authors>Joseph N. Musser II</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/jnm2/ReadOnlyParameterAnalyzer</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/jnm2/ReadOnlyParameterAnalyzer</RepositoryUrl>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <Description>ReadOnlyParameterAnalyzer</Description>
+    <PackageReleaseNotes>Summary of changes made in this release of the package.</PackageReleaseNotes>
+    <Copyright>Copyright © 2026 Joseph N. Musser II</Copyright>
+    <PackageTags>Roslyn analyzer readonly parameter primary constructor modifier keyword attribute</PackageTags>
+    <DevelopmentDependency>true</DevelopmentDependency>
+
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_AddAnalyzersToOutput</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Instrumental.ReadOnlyParameterAnalyzer.BuildTime\Instrumental.ReadOnlyParameterAnalyzer.BuildTime.csproj" />
+    <ProjectReference Include="..\Instrumental.ReadOnlyParameterAnalyzer.Ide\Instrumental.ReadOnlyParameterAnalyzer.Ide.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="tools\*.ps1" CopyToOutputDirectory="PreserveNewest" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <Target Name="_AddAnalyzersToOutput">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(OutputPath)\Instrumental.ReadOnlyParameterAnalyzer.BuildTime.dll" PackagePath="analyzers/dotnet/cs" />
+      <TfmSpecificPackageFile Include="$(OutputPath)\Instrumental.ReadOnlyParameterAnalyzer.Ide.dll" PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
+  </Target>
+
+</Project>

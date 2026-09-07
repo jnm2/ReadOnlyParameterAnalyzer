@@ -1,0 +1,9 @@
+<Project>
+
+  <PropertyGroup>
+    <LangVersion>14</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <MSBuildTreatWarningsAsErrors Condition="'$(Configuration)' == 'Release'">true</MSBuildTreatWarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

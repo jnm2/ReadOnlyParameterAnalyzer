@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+    <File Path="WIP.md" />
+  </Folder>
+  <Project Path="src/Instrumental.ReadOnlyParameterAnalyzer.Ide/Instrumental.ReadOnlyParameterAnalyzer.Ide.csproj" />
+  <Project Path="src/Instrumental.ReadOnlyParameterAnalyzer.Package/Instrumental.ReadOnlyParameterAnalyzer.Package.csproj" Id="18413d48-9bf4-48d4-a2d1-4d54c670e3f3" />
+  <Project Path="src/Instrumental.ReadOnlyParameterAnalyzer.Tests/Instrumental.ReadOnlyParameterAnalyzer.Tests.csproj" Id="db1d5fdd-2c7a-4df8-bfe1-e1257b6b6768" />
+  <Project Path="src/Instrumental.ReadOnlyParameterAnalyzer.BuildTime/Instrumental.ReadOnlyParameterAnalyzer.BuildTime.csproj" Id="0eca9620-2cf2-49e8-98a3-397e38668641" />
+</Solution>
