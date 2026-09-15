@@ -1,0 +1,11 @@
+<Project>
+
+  <PropertyGroup>
+    <GenerateReadOnlyParameterAttribute Condition="'$(GenerateReadOnlyParameterAttribute)' == ''">true</GenerateReadOnlyParameterAttribute>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' and '$(GenerateReadOnlyParameterAttribute)' == 'true'">
+    <Compile Include="$(MSBuildThisFileDirectory)Instrumental.Annotations.ReadOnlyAttribute.g.cs" Visible="false" />
+  </ItemGroup>
+
+</Project>

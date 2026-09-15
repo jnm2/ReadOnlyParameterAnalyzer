@@ -8,18 +8,7 @@ using TUnit.Core;
 public class ReadOnlyParameterMutationTests : AnalyzerTests<ReadOnlyParameterMutationAnalyzer, ReadOnlyParameterMutationCodeFixProvider>
 {
     private static readonly TestConfig DefaultConfig = new TestConfig()
-        .AddSource("Instrumental.Annotations.ReadOnlyAttribute.g.cs", """
-            using System;
-
-            namespace Instrumental.Annotations;
-
-            [AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
-            internal sealed class ReadOnlyAttribute : Attribute
-            {
-                public ReadOnlyAttribute() : this(readOnly: true) { }
-                public ReadOnlyAttribute(bool readOnly) { }
-            }
-            """);
+        .AddSource("Instrumental.Annotations.ReadOnlyAttribute.g.cs", Resources.ReadOnlyAttributeSource);
 
     [Test]
     public async Task ReadOnly_primary_parameter_simple_assignment()

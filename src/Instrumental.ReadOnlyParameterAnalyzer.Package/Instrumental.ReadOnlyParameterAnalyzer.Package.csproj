@@ -30,7 +30,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="tools\*.ps1" CopyToOutputDirectory="PreserveNewest" Pack="true" PackagePath="" />
+    <None Include="build\Instrumental.Annotations.ReadOnlyAttribute.g.cs" Pack="true" PackagePath="build" />
+    <None Update="build\Instrumental.ReadOnlyParameterAnalyzer.targets" Pack="true" PackagePath="build" />
   </ItemGroup>
 
   <Target Name="_AddAnalyzersToOutput">

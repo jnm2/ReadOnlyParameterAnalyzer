@@ -1,5 +1,3 @@
-- NuGet package to contain internal .g.cs attribute with `[Conditional("NEVER")]`
-  - Check that [Conditional] is sufficient to not need an optout for IVT
 - Add F5 debug
 - Build out readme
 - Build out package
@@ -13,6 +11,8 @@ Things either blocked or defensive-copied by the presence of `readonly` on a fie
   - Incl implicitly through `foreach` and other constructs but only if they don't _always_ copy regardless of readonly
   - `new Action(readonlyField.NonReadOnlyMember)` is a copy but is not a defensive copy (boxing is a copy regardless of readonly)
     - Check boxing on `using (readOnlyField)` and all other lang constructs
+  - Incl implicit `ToString()` in `p + ""` etc.
+    - Make sure to test that enums are seen as readonly
 - `readonlyField = ref`
   - whether it's a `ref readonly` or not
 
@@ -41,3 +41,4 @@ class D(InlineArray3<int> a) : B(a[0] = 3);
 
 - Introduce explicit defensive copy (TODO: use temps instead of casts)
 - Cast inline array to ROS before foreach? (preferable: analyze iteration variable recursively)
+  - Update point 5 in XML docs on the attribute definition to reflect the chosen approach
