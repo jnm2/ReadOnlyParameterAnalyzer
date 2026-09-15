@@ -15,8 +15,8 @@
     <PackageProjectUrl>https://github.com/jnm2/ReadOnlyParameterAnalyzer</PackageProjectUrl>
     <RepositoryUrl>https://github.com/jnm2/ReadOnlyParameterAnalyzer</RepositoryUrl>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <Description>ReadOnlyParameterAnalyzer</Description>
-    <PackageReleaseNotes>Summary of changes made in this release of the package.</PackageReleaseNotes>
+    <Description>Enforces readonly parameter intent, including primary constructor parameters, nested struct fields, and inline arrays. Includes an internal compile-time ReadOnly attribute and defensive-copy code fixes.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <Copyright>Copyright © 2026 Joseph N. Musser II</Copyright>
     <PackageTags>Roslyn analyzer readonly parameter primary constructor modifier keyword attribute</PackageTags>
     <DevelopmentDependency>true</DevelopmentDependency>
@@ -32,6 +32,8 @@
   <ItemGroup>
     <None Include="build\Instrumental.Annotations.ReadOnlyAttribute.g.cs" Pack="true" PackagePath="build" />
     <None Update="build\Instrumental.ReadOnlyParameterAnalyzer.targets" Pack="true" PackagePath="build" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
+    <None Include="..\..\LICENSE.txt" Pack="true" PackagePath="" />
   </ItemGroup>
 
   <Target Name="_AddAnalyzersToOutput">

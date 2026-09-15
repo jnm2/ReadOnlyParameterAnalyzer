@@ -1,6 +1,5 @@
-- Add F5 debug
-- Build out readme
-- Build out package
+- F5 debugging is deferred.
+- Usage, packaging, and compiler-behavior references are documented in README.md.
 
 Things either blocked or defensive-copied by the presence of `readonly` on a field:
 
@@ -30,15 +29,15 @@ For readonly inline array:
 - foreach over inline array produces non-writable ref iteration variable
   - maybe analyze the iteration variable instead?
 
-For ref-like typed primary parameters, they can only be 
+Ref-like typed primary parameters cannot be captured by instance members. Their uses in member initializers and base constructor arguments must still be analyzed.
 
 class B(int p);
 class D(InlineArray3<int> a) : B(a[0] = 3);
 
-- `[ReadOnly] ref` and `[ReadOnly] readonly ref` allowed, ensure that what is blocked is `= ref` reassignment and that mutations after reading the ref are not blocked
+- `[ReadOnly] ref` and `[ReadOnly] ref readonly` parameters protect `= ref` reassignment, not mutations after reading the ref. The language's own `ref readonly` restrictions still apply.
 
 ## Fixers
 
-- Introduce explicit defensive copy (TODO: use temps instead of casts)
-- Cast inline array to ROS before foreach? (preferable: analyze iteration variable recursively)
+- Introduce explicit defensive copy using a temporary, not an identity cast
+- Inline-array ref iteration variables are analyzed recursively, rather than casting the collection before foreach.
   - Update point 5 in XML docs on the attribute definition to reflect the chosen approach
