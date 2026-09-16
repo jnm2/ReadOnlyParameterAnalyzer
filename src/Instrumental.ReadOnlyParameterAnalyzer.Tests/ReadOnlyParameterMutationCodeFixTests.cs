@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Testing;
 using Microsoft.CodeAnalysis.Text;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using TUnit.Core;
 
 public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParameterMutationAnalyzer, ReadOnlyParameterMutationCodeFixProvider>
@@ -15,7 +16,7 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
     private static readonly TestConfig Config = new TestConfig()
         .AddSource("Instrumental.Annotations.ReadOnlyAttribute.g.cs", Resources.ReadOnlyAttributeSource);
 
-    private static string Source(string members) => """
+    private static string Source([StringSyntax("C#-Test")] string members) => TestSource.Markup("""
         using System;
         using System.Linq.Expressions;
         using Instrumental.Annotations;
@@ -28,7 +29,7 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
             public int M() => 1;
             public void V() { }
         }
-        """.Replace("MEMBERS", string.Join(Environment.NewLine, members.Split('\n').Select(line => "    " + line.TrimEnd('\r'))));
+        """).Replace("MEMBERS", string.Join(Environment.NewLine, members.Split('\n').Select(line => "    " + line.TrimEnd('\r'))));
 
     [Test]
     [Arguments("int M() => {|IRP0001:p|}.M();", """
@@ -245,7 +246,7 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
                 Console.WriteLine();
         }
         """)]
-    public async Task Safe_contexts(string source, string fixedSource)
+    public async Task Safe_contexts([StringSyntax("C#-Test")] string source, [StringSyntax("C#-Test")] string fixedSource)
     {
         await Config.RunTestAsync(Source(source), Source(fixedSource));
     }
@@ -264,7 +265,7 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
     [Arguments("Expression<Func<int>> M() => () => {|IRP0001:p|}.M();")]
     [Arguments("Expression<Func<Func<int>>> M() => () => () => {|IRP0001:p|}.M();")]
     [Arguments("int[] values = new int[1]; void M() { values[Environment.TickCount] = {|IRP0001:p|}.M(); }")]
-    public async Task Unsafe_hoisting_is_not_offered(string members)
+    public async Task Unsafe_hoisting_is_not_offered([StringSyntax("C#-Test")] string members)
     {
         await Config.RunTestAsync(Source(members));
     }
@@ -303,7 +304,7 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
         using var workspace = new AdhocWorkspace();
         var project = workspace.AddProject("Test", LanguageNames.CSharp)
             .AddMetadataReference(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
-        var document = project.AddDocument("Test.cs", SourceText.From("class C { void M(S p) { p.V(); } } struct S { public void V() { } }"));
+        var document = project.AddDocument("Test.cs", TestSource.Text("class C { void M(S p) { p.V(); } } struct S { public void V() { } }"));
         var root = await document.GetSyntaxRootAsync();
         var receiver = root.DescendantNodes().OfType<IdentifierNameSyntax>().Single(node => node.Identifier.ValueText == "p");
         var diagnostic = Microsoft.CodeAnalysis.Diagnostic.Create(Diagnostics.ReadOnlyParameterMutation.Descriptor,
@@ -319,7 +320,7 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
     [Test]
     [Arguments("+=")]
     [Arguments("-=")]
-    public async Task Event_accessor_copy_precedes_handler_evaluation(string operation)
+    public async Task Event_accessor_copy_precedes_handler_evaluation([StringSyntax("C#")] string operation)
     {
         var source = Source("""
             struct Events { public event Action E { add { } remove { } } }
@@ -344,7 +345,7 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
     [Test]
     [Arguments("var item")]
     [Arguments("var (x, y)")]
-    public async Task Foreach_collection_is_copied_once(string variable)
+    public async Task Foreach_collection_is_copied_once([StringSyntax("C#")] string variable)
     {
         var source = Source("""
             struct Sequence
@@ -418,9 +419,9 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
             return result;
         }
         """)]
-    public async Task Ref_like_receiver_in_synchronous_body(string source, string fixedSource)
+    public async Task Ref_like_receiver_in_synchronous_body([StringSyntax("C#-Test")] string source, [StringSyntax("C#-Test")] string fixedSource)
     {
-        const string declaration = "ref struct R { public void V() { } public int M() => 1; }\n";
+        var declaration = TestSource.Code("ref struct R { public void V() { } public int M() => 1; }\n");
         await Config.RunTestAsync(Source(declaration + source), Source(declaration + fixedSource));
     }
 
@@ -455,7 +456,7 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
         {
             LanguageVersion = LanguageVersion.Preview,
             ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
-            TestCode = """
+            TestCode = TestSource.Markup("""
                 using Instrumental.Annotations;
                 class C
                 {
@@ -470,8 +471,8 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
                     [System.AttributeUsage(System.AttributeTargets.Parameter)]
                     public sealed class ReadOnlyAttribute : System.Attribute { }
                 }
-                """,
-            FixedCode = """
+                """),
+            FixedCode = TestSource.Markup("""
                 using Instrumental.Annotations;
                 class C
                 {
@@ -487,7 +488,7 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
                     [System.AttributeUsage(System.AttributeTargets.Parameter)]
                     public sealed class ReadOnlyAttribute : System.Attribute { }
                 }
-                """,
+                """),
         };
         await test.RunAsync(TestContext.Current.Execution.CancellationToken);
     }
@@ -499,7 +500,7 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
         {
             LanguageVersion = LanguageVersion.Preview,
             ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
-            TestCode = """
+            TestCode = TestSource.Markup("""
                 using Instrumental.Annotations;
                 using System.Diagnostics.CodeAnalysis;
                 class C
@@ -518,7 +519,7 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
                     [System.AttributeUsage(System.AttributeTargets.Parameter)]
                     public sealed class ReadOnlyAttribute : System.Attribute { }
                 }
-                """,
+                """),
         };
         await test.RunAsync(TestContext.Current.Execution.CancellationToken);
     }

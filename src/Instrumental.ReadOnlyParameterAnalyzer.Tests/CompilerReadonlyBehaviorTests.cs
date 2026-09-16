@@ -12,7 +12,7 @@ public class CompilerReadonlyBehaviorTests
     public async Task Compiler_readonly_accessor_rules()
     {
         var compilation = CSharpCompilation.Create("AccessorProbe",
-            [CSharpSyntaxTree.ParseText("""
+            [TestSource.Parse("""
                 using System;
                 class C
                 {
@@ -38,7 +38,7 @@ public class CompilerReadonlyBehaviorTests
     public async Task Compiler_constructs_copy_only_where_readonly_changes_receiver()
     {
         var compilation = CSharpCompilation.Create("ReadonlyProbe",
-            [CSharpSyntaxTree.ParseText("""
+            [TestSource.Parse("""
                 using System;
                 using System.Collections;
                 using System.Collections.Generic;

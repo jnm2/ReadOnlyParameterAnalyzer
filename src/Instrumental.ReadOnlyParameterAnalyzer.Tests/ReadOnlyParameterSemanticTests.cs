@@ -5,11 +5,12 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Testing;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using TUnit.Core;
 
 public class ReadOnlyParameterSemanticTests : AnalyzerTests<ReadOnlyParameterMutationAnalyzer>
 {
-    private const string AttributeSource = """
+    private static readonly string AttributeSource = TestSource.Code("""
         namespace Instrumental.Annotations
         {
             [System.AttributeUsage(System.AttributeTargets.Parameter)]
@@ -19,13 +20,13 @@ public class ReadOnlyParameterSemanticTests : AnalyzerTests<ReadOnlyParameterMut
                 public ReadOnlyAttribute(bool readOnly) { }
             }
         }
-        """;
+        """);
 
     private static DiagnosticResult Expected(int location, string reason, string attribute = "ReadOnly") =>
         Diagnostic().WithLocation(location).WithMessage(
             $"Parameter 'p' is marked as readonly via [{attribute}] on the parameter declaration, but it is possibly mutated by {reason}");
 
-    private static async Task Check(string source, params DiagnosticResult[] diagnostics)
+    private static async Task Check([StringSyntax("C#-Test")] string source, params DiagnosticResult[] diagnostics)
     {
         var test = new TestConfig.Test
         {
@@ -346,7 +347,7 @@ public class ReadOnlyParameterSemanticTests : AnalyzerTests<ReadOnlyParameterMut
     public async Task Defensive_copy_property_is_only_present_for_compiler_defensive_copies()
     {
         var compilation = CSharpCompilation.Create("PropertyContract",
-            [CSharpSyntaxTree.ParseText(AttributeSource), CSharpSyntaxTree.ParseText("""
+            [TestSource.Parse(AttributeSource), TestSource.Parse("""
                 using Instrumental.Annotations;
                 class C
                 {
@@ -403,7 +404,7 @@ public class ReadOnlyParameterSemanticTests : AnalyzerTests<ReadOnlyParameterMut
     [Arguments("<<=")]
     [Arguments(">>=")]
     [Arguments(">>>=")]
-    public async Task Remaining_compound_operators_are_forbidden(string op)
+    public async Task Remaining_compound_operators_are_forbidden([StringSyntax("C#")] string op)
     {
         await Check($$"""
             using Instrumental.Annotations;
@@ -622,7 +623,7 @@ public class ReadOnlyParameterSemanticTests : AnalyzerTests<ReadOnlyParameterMut
     [Arguments("public int Length { private get => 0; set { } }")]
     [Arguments("public static int Length => 0;")]
     [Arguments("public int Length;")]
-    public async Task Invalid_length_members_do_not_make_spread_countable(string member)
+    public async Task Invalid_length_members_do_not_make_spread_countable([StringSyntax("C#")] string member)
     {
         await Check($$"""
             using Instrumental.Annotations;
