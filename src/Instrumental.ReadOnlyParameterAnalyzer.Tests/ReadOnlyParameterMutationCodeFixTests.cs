@@ -31,55 +31,82 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
         """).Replace("MEMBERS", string.Join(Environment.NewLine, members.Split('\n').Select(line => "    " + line.TrimEnd('\r'))));
 
     [Test]
-    [Arguments("int M() => {|IRP0001:p|}.M();", """
+    public async Task Expression_bodied_method_copies_receiver_before_return()
+    {
+        await Config.RunTestAsync(Source("int M() => {|IRP0001:p|}.M();"), Source("""
         int M()
         {
             var pCopy = p;
             return pCopy.M();
         }
-        """)]
-    [Arguments("""
+        """));
+    }
+
+    [Test]
+    public async Task Field_receiver_copies_containing_struct_before_invocation()
+    {
+        await Config.RunTestAsync(Source("""
         struct Outer { public S Field; }
         void M([ReadOnly] Outer value) => {|IRP0001:value|}.Field.V();
-        """, """
+        """), Source("""
         struct Outer { public S Field; }
         void M([ReadOnly] Outer value)
         {
             var valueCopy = value;
             valueCopy.Field.V();
         }
-        """)]
-    [Arguments("""
+        """));
+    }
+
+    [Test]
+    public async Task Property_getter_copies_receiver_before_return()
+    {
+        await Config.RunTestAsync(Source("""
         struct Outer { public int P { get { return 1; } } }
         int M([ReadOnly] Outer value) => {|IRP0001:value|}.P;
-        """, """
+        """), Source("""
         struct Outer { public int P { get { return 1; } } }
         int M([ReadOnly] Outer value)
         {
             var valueCopy = value;
             return valueCopy.P;
         }
-        """)]
-    [Arguments("async System.Threading.Tasks.Task<int> M() => {|IRP0001:p|}.M();", """
+        """));
+    }
+
+    [Test]
+    public async Task Async_expression_bodied_method_copies_receiver_before_return()
+    {
+        await Config.RunTestAsync(Source("async System.Threading.Tasks.Task<int> M() => {|IRP0001:p|}.M();"), Source("""
         async System.Threading.Tasks.Task<int> M()
         {
             var pCopy = p;
             return pCopy.M();
         }
-        """)]
-    [Arguments("async System.Threading.Tasks.Task M() => {|IRP0001:p|}.V();", """
+        """));
+    }
+
+    [Test]
+    public async Task Async_expression_bodied_void_method_copies_receiver_before_invocation()
+    {
+        await Config.RunTestAsync(Source("async System.Threading.Tasks.Task M() => {|IRP0001:p|}.V();"), Source("""
         async System.Threading.Tasks.Task M()
         {
             var pCopy = p;
             pCopy.V();
         }
-        """)]
-    [Arguments("""
+        """));
+    }
+
+    [Test]
+    public async Task Expression_bodied_setter_copies_receiver_before_invocation()
+    {
+        await Config.RunTestAsync(Source("""
         int P
         {
             set => {|IRP0001:p|}.V();
         }
-        """, """
+        """), Source("""
         int P
         {
             set
@@ -88,14 +115,19 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
                 pCopy.V();
             }
         }
-        """)]
-    [Arguments("""
+        """));
+    }
+
+    [Test]
+    public async Task Expression_bodied_local_function_copies_receiver_before_return()
+    {
+        await Config.RunTestAsync(Source("""
         void M()
         {
             int Local() => {|IRP0001:p|}.M();
             Console.WriteLine(Local());
         }
-        """, """
+        """), Source("""
         void M()
         {
             int Local()
@@ -105,8 +137,13 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
             }
             Console.WriteLine(Local());
         }
-        """)]
-    [Arguments("int P => {|IRP0001:p|}.M();", """
+        """));
+    }
+
+    [Test]
+    public async Task Expression_bodied_property_copies_receiver_before_return()
+    {
+        await Config.RunTestAsync(Source("int P => {|IRP0001:p|}.M();"), Source("""
         int P
         {
             get
@@ -115,13 +152,18 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
                 return pCopy.M();
             }
         }
-        """)]
-    [Arguments("""
+        """));
+    }
+
+    [Test]
+    public async Task Expression_bodied_getter_copies_receiver_before_return()
+    {
+        await Config.RunTestAsync(Source("""
         int P
         {
             get => {|IRP0001:p|}.M();
         }
-        """, """
+        """), Source("""
         int P
         {
             get
@@ -130,13 +172,18 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
                 return pCopy.M();
             }
         }
-        """)]
-    [Arguments("""
+        """));
+    }
+
+    [Test]
+    public async Task Value_returning_lambda_copies_receiver_before_return()
+    {
+        await Config.RunTestAsync(Source("""
         void M()
         {
             Func<int> f = () => {|IRP0001:p|}.M();
         }
-        """, """
+        """), Source("""
         void M()
         {
             Func<int> f = () =>
@@ -145,13 +192,18 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
                 return pCopy.M();
             };
         }
-        """)]
-    [Arguments("""
+        """));
+    }
+
+    [Test]
+    public async Task Void_lambda_copies_receiver_before_invocation()
+    {
+        await Config.RunTestAsync(Source("""
         void M()
         {
             Action f = () => {|IRP0001:p|}.V();
         }
-        """, """
+        """), Source("""
         void M()
         {
             Action f = () =>
@@ -160,52 +212,72 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
                 pCopy.V();
             };
         }
-        """)]
-    [Arguments("""
+        """));
+    }
+
+    [Test]
+    public async Task Return_statement_copies_receiver_before_return()
+    {
+        await Config.RunTestAsync(Source("""
         int M()
         {
             return {|IRP0001:p|}.M();
         }
-        """, """
+        """), Source("""
         int M()
         {
             var pCopy = p;
             return pCopy.M();
         }
-        """)]
-    [Arguments("""
+        """));
+    }
+
+    [Test]
+    public async Task Local_initializer_copies_receiver_before_declaration()
+    {
+        await Config.RunTestAsync(Source("""
         void M()
         {
             int value = {|IRP0001:p|}.M();
         }
-        """, """
+        """), Source("""
         void M()
         {
             var pCopy = p;
             int value = pCopy.M();
         }
-        """)]
-    [Arguments("""
+        """));
+    }
+
+    [Test]
+    public async Task Assignment_copies_receiver_before_assignment()
+    {
+        await Config.RunTestAsync(Source("""
         void M()
         {
             int value;
             value = {|IRP0001:p|}.M();
         }
-        """, """
+        """), Source("""
         void M()
         {
             int value;
             var pCopy = p;
             value = pCopy.M();
         }
-        """)]
-    [Arguments("""
+        """));
+    }
+
+    [Test]
+    public async Task Embedded_if_body_copies_receiver_inside_new_block()
+    {
+        await Config.RunTestAsync(Source("""
         void M(bool condition)
         {
             if (condition)
                 {|IRP0001:p|}.V();
         }
-        """, """
+        """), Source("""
         void M(bool condition)
         {
             if (condition)
@@ -214,14 +286,19 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
                 pCopy.V();
             }
         }
-        """)]
-    [Arguments("""
+        """));
+    }
+
+    [Test]
+    public async Task Embedded_while_body_copies_receiver_inside_new_block()
+    {
+        await Config.RunTestAsync(Source("""
         void M(bool condition)
         {
             while (condition)
                 {|IRP0001:p|}.V();
         }
-        """, """
+        """), Source("""
         void M(bool condition)
         {
             while (condition)
@@ -230,24 +307,26 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
                 pCopy.V();
             }
         }
-        """)]
-    [Arguments("""
+        """));
+    }
+
+    [Test]
+    public async Task If_condition_copies_receiver_before_condition()
+    {
+        await Config.RunTestAsync(Source("""
         void M()
         {
             if ({|IRP0001:p|}.M() > 0)
                 Console.WriteLine();
         }
-        """, """
+        """), Source("""
         void M()
         {
             var pCopy = p;
             if (pCopy.M() > 0)
                 Console.WriteLine();
         }
-        """)]
-    public async Task Safe_contexts([StringSyntax("C#-Test")] string source, [StringSyntax("C#-Test")] string fixedSource)
-    {
-        await Config.RunTestAsync(Source(source), Source(fixedSource));
+        """));
     }
 
     [Test]
@@ -385,43 +464,54 @@ public class ReadOnlyParameterMutationCodeFixTests : AnalyzerTests<ReadOnlyParam
     }
 
     [Test]
-    [Arguments("""
+    public async Task Ref_like_receiver_in_synchronous_invocation_is_copied()
+    {
+        var declaration = TestSource.Code("ref struct R { public void V() { } public int M() => 1; }\n");
+        await Config.RunTestAsync(Source(declaration + """
         void M([ReadOnly] R value)
         {
             {|IRP0001:value|}.V();
         }
-        """, """
+        """), Source(declaration + """
         void M([ReadOnly] R value)
         {
             var valueCopy = value;
             valueCopy.V();
         }
-        """)]
-    [Arguments("int M([ReadOnly] R value) => {|IRP0001:value|}.M();", """
+        """));
+    }
+
+    [Test]
+    public async Task Ref_like_receiver_in_synchronous_expression_bodied_method_is_copied()
+    {
+        var declaration = TestSource.Code("ref struct R { public void V() { } public int M() => 1; }\n");
+        await Config.RunTestAsync(Source(declaration + "int M([ReadOnly] R value) => {|IRP0001:value|}.M();"), Source(declaration + """
         int M([ReadOnly] R value)
         {
             var valueCopy = value;
             return valueCopy.M();
         }
-        """)]
-    [Arguments("""
+        """));
+    }
+
+    [Test]
+    public async Task Ref_like_receiver_in_synchronous_local_initializer_is_copied()
+    {
+        var declaration = TestSource.Code("ref struct R { public void V() { } public int M() => 1; }\n");
+        await Config.RunTestAsync(Source(declaration + """
         int M([ReadOnly] R value)
         {
             int result = {|IRP0001:value|}.M();
             return result;
         }
-        """, """
+        """), Source(declaration + """
         int M([ReadOnly] R value)
         {
             var valueCopy = value;
             int result = valueCopy.M();
             return result;
         }
-        """)]
-    public async Task Ref_like_receiver_in_synchronous_body([StringSyntax("C#-Test")] string source, [StringSyntax("C#-Test")] string fixedSource)
-    {
-        var declaration = TestSource.Code("ref struct R { public void V() { } public int M() => 1; }\n");
-        await Config.RunTestAsync(Source(declaration + source), Source(declaration + fixedSource));
+        """));
     }
 
     [Test]
