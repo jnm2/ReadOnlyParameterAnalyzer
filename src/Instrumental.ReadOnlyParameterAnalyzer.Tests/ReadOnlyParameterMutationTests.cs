@@ -1,7 +1,5 @@
 ﻿namespace Instrumental.ReadOnlyParameterAnalyzer.Tests;
 
-using Microsoft;
-using Microsoft.CodeAnalysis.CSharp;
 using System.Threading.Tasks;
 using TUnit.Core;
 
