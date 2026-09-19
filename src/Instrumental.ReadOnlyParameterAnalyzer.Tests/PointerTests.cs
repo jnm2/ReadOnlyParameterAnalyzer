@@ -176,4 +176,231 @@ public class PointerTests : Framework.AnalyzerTests<ReadOnlyParameterMutationAna
             struct S2 { public int MutableFieldInStruct2; }
             """);
     }
+
+    [Test]
+    public async Task ReadOnly_pointer_parameter_dereferenced_value_assignments_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] int* p)
+                {
+                    *p = 5;
+                    *p += 1;
+                    (*p)++;
+                    --*p;
+                    (*p, _) = (6, 7);
+                }
+            }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_pointer_parameter_element_assignments_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] int* p)
+                {
+                    p[0] = 5;
+                    p[0] += 1;
+                    p[0]++;
+                    --p[0];
+                    (p[0], _) = (6, 7);
+                }
+            }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_pointer_parameter_inline_array_element_assignments_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            using System.Runtime.CompilerServices;
+            unsafe class C
+            {
+                void M([ReadOnly] Buffer* p)
+                {
+                    (*p)[0] = 5;
+                    (*p)[0]++;
+                    ((*p)[0], _) = (6, 7);
+                }
+            }
+            [InlineArray(2)]
+            struct Buffer { private int element; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_pointer_parameter_nested_field_assignments_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] Outer* p, int* other)
+                {
+                    p->MutableFieldInStruct.MutablePointerFieldInStruct = other;
+                    *p->MutableFieldInStruct.MutablePointerFieldInStruct = 5;
+                    p->MutableFieldInStruct.Value = 6;
+                    (*p).MutableFieldInStruct.Value++;
+                    (p->MutableFieldInStruct.Value, _) = (7, 8);
+                }
+            }
+            struct Outer { public Inner MutableFieldInStruct; }
+            unsafe struct Inner
+            {
+                public int* MutablePointerFieldInStruct;
+                public int Value;
+            }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_pointer_parameter_mutating_struct_method_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] S* p)
+                {
+                    p->Mutate();
+                    (*p).Mutate();
+                    p[0].Mutate();
+                }
+            }
+            struct S
+            {
+                public int Value;
+                public void Mutate() => Value++;
+            }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_parameter_pointer_field_dereferenced_value_assignments_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] S p)
+                {
+                    *p.MutablePointerFieldInStruct = 5;
+                    *p.MutablePointerFieldInStruct += 1;
+                    (*p.MutablePointerFieldInStruct)++;
+                    --*p.MutablePointerFieldInStruct;
+                    (*p.MutablePointerFieldInStruct, _) = (6, 7);
+                }
+            }
+            unsafe struct S { public int* MutablePointerFieldInStruct; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_parameter_pointer_field_element_assignments_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] S p)
+                {
+                    p.MutablePointerFieldInStruct[0] = 5;
+                    p.MutablePointerFieldInStruct[0] += 1;
+                    p.MutablePointerFieldInStruct[0]++;
+                    --p.MutablePointerFieldInStruct[0];
+                    (p.MutablePointerFieldInStruct[0], _) = (6, 7);
+                }
+            }
+            unsafe struct S { public int* MutablePointerFieldInStruct; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_parameter_nested_inline_pointer_field_value_assignments_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] Outer p)
+                {
+                    *p.MutableFieldInStruct.MutablePointerFieldInStruct = 5;
+                    p.MutableFieldInStruct.MutablePointerFieldInStruct[0]++;
+                    (*p.MutableFieldInStruct.MutablePointerFieldInStruct, _) = (6, 7);
+                }
+            }
+            struct Outer { public Inner MutableFieldInStruct; }
+            unsafe struct Inner { public int* MutablePointerFieldInStruct; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_parameter_nested_pointer_field_pointer_assignment_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] Outer p, int* other)
+                {
+                    p.MutablePointerFieldInStruct->MutablePointerFieldInStruct = other;
+                    p.MutablePointerFieldInStruct->MutablePointerFieldInStruct++;
+                    *p.MutablePointerFieldInStruct->MutablePointerFieldInStruct = 5;
+                }
+            }
+            unsafe struct Outer { public Inner* MutablePointerFieldInStruct; }
+            unsafe struct Inner { public int* MutablePointerFieldInStruct; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_parameter_pointer_field_nested_value_assignments_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] Outer p)
+                {
+                    p.MutablePointerFieldInStruct->MutableFieldInStruct.Value = 5;
+                    p.MutablePointerFieldInStruct->MutableFieldInStruct.Value += 1;
+                    p.MutablePointerFieldInStruct->MutableFieldInStruct.Value++;
+                    (p.MutablePointerFieldInStruct->MutableFieldInStruct.Value, _) = (6, 7);
+                }
+            }
+            unsafe struct Outer { public Inner* MutablePointerFieldInStruct; }
+            struct Inner { public ValueType MutableFieldInStruct; }
+            struct ValueType { public int Value; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_parameter_pointer_field_mutating_struct_method_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] Outer p)
+                {
+                    p.MutablePointerFieldInStruct->Mutate();
+                    (*p.MutablePointerFieldInStruct).Mutate();
+                    p.MutablePointerFieldInStruct[0].Mutate();
+                }
+            }
+            unsafe struct Outer { public Inner* MutablePointerFieldInStruct; }
+            struct Inner
+            {
+                public int Value;
+                public void Mutate() => Value++;
+            }
+            """);
+    }
 }
