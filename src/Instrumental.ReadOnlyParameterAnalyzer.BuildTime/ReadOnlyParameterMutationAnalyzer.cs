@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 using System.Collections.Immutable;
+using System.Text;
 
 namespace Instrumental.ReadOnlyParameterAnalyzer;
 
@@ -47,7 +48,7 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static void AnalyzeAssignmentTarget(OperationAnalysisContext context, IOperation target, string operatorText)
+    private static void AnalyzeAssignmentTarget(OperationAnalysisContext context, IOperation target, string operatorText, IOperation inlineTarget = null)
     {
         if (target is ITupleOperation tupleOperation)
         {
@@ -56,41 +57,50 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
         }
         else if (target is IFieldReferenceOperation { Field.RefKind: RefKind.None, Instance.Type.IsValueType: true } fieldReference)
         {
-            AnalyzeAssignmentTarget(context, fieldReference.Instance, operatorText);
+            AnalyzeAssignmentTarget(context, fieldReference.Instance, operatorText, inlineTarget ?? target);
         }
         else if (target is IInlineArrayAccessOperation inlineArrayAccess)
         {
-            AnalyzeAssignmentTarget(context, inlineArrayAccess.Instance, operatorText);
+            AnalyzeAssignmentTarget(context, inlineArrayAccess.Instance, operatorText, inlineTarget ?? target);
         }
         else if (IsReadOnlyParameterReference(target, out var diagnosticCreator))
         {
+            var mutatedBy = new StringBuilder();
+            mutatedBy.Append("'").Append(operatorText).Append("' assignment");
+
+            if (inlineTarget is not null)
+            {
+                mutatedBy.Append(" to '").Append(inlineTarget.Syntax).Append("' which is stored inline within '")
+                    .Append(diagnosticCreator.ParameterReference.Parameter.Name).Append("'");
+            }
+
             context.ReportDiagnostic(diagnosticCreator.Create(
-                mutatedBy: $"'{operatorText}' assignment",
+                mutatedBy.ToString(),
                 isMissingDefensiveCopy: false));
         }
     }
 
-    private readonly struct ReadOnlyParameterMutationDiagnosticCreator(
-        IParameterReferenceOperation parameterReference,
-        SyntaxReference applicationSyntaxReference)
+    private sealed record ReadOnlyParameterMutationDiagnosticCreator(
+        IParameterReferenceOperation ParameterReference,
+        SyntaxReference ApplicationSyntaxReference)
     {
         public Diagnostic Create(string mutatedBy, bool isMissingDefensiveCopy)
         {
-            if (applicationSyntaxReference is null)
+            if (ApplicationSyntaxReference is null)
                 throw new NotImplementedException("TODO: cover defaults (editorconfig or csproj)");
 
-            var configuredAsReadonlyVia = $"[{applicationSyntaxReference.GetSyntax()}] on the parameter declaration";
+            var configuredAsReadonlyVia = $"[{ApplicationSyntaxReference.GetSyntax()}] on the parameter declaration";
 
             var properties = ImmutableDictionary.CreateBuilder<string, string>();
-            properties.Add(Diagnostics.ReadOnlyParameterMutation.Properties.ParameterName, parameterReference.Parameter.Name);
+            properties.Add(Diagnostics.ReadOnlyParameterMutation.Properties.ParameterName, ParameterReference.Parameter.Name);
             if (isMissingDefensiveCopy)
                 properties.Add(Diagnostics.ReadOnlyParameterMutation.Properties.DefensiveCopyFix, null);
 
             return Diagnostic.Create(
                 Diagnostics.ReadOnlyParameterMutation.Descriptor,
-                parameterReference.Syntax.GetLocation(),
+                ParameterReference.Syntax.GetLocation(),
                 properties.ToImmutable(),
-                messageArgs: [parameterReference.Parameter.Name, configuredAsReadonlyVia, mutatedBy]);
+                messageArgs: [ParameterReference.Parameter.Name, configuredAsReadonlyVia, mutatedBy]);
         }
     }
 

@@ -67,6 +67,28 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
     }
 
     [Test]
+    public async Task ReadOnly_primary_parameters_direct_and_inline_deconstructing_assignment_in_method_body()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            using System.Runtime.CompilerServices;
+            class C([ReadOnly] Buffer p, [ReadOnly] int p2)
+            {
+                void M() => (({|#1:p|}[0].X, {|#2:p2|}), {|#3:p|}[1].X) = ((5, 6), 7);
+            }
+            [InlineArray(2)]
+            struct Buffer { private S element; }
+            struct S { public int X; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p[0].X' which is stored inline within 'p'"),
+            Diagnostic().WithLocation(2).WithMessage(
+                "Parameter 'p2' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"),
+            Diagnostic().WithLocation(3).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p[1].X' which is stored inline within 'p'"));
+    }
+
+    [Test]
     [Arguments("++")]
     [Arguments("--")]
     public async Task ReadOnly_primary_parameter_prefix_increment_or_decrement_in_method_body(string assignmentOperator)
@@ -112,7 +134,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct Buffer { private int element; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p[0]' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -127,7 +149,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct S { public int MutableFieldInStruct; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p.MutableFieldInStruct' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -146,7 +168,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct InnerBuffer { private int element; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p[0][0]' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -164,7 +186,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct S { public int MutableFieldInStruct; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p[0].MutableFieldInStruct' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -182,7 +204,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct Buffer { private int element; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p.InlineArrayFieldInStruct[0]' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -198,7 +220,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct S2 { public int MutableFieldInStruct2; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p.MutableFieldInStruct.MutableFieldInStruct2' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -215,7 +237,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct Buffer { private int element; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p[0]' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -230,7 +252,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct S { public int MutableFieldInStruct; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p.MutableFieldInStruct' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -249,7 +271,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct InnerBuffer { private int element; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p[0][0]' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -267,7 +289,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct S { public int MutableFieldInStruct; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p[0].MutableFieldInStruct' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -285,7 +307,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct Buffer { private int element; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p.InlineArrayFieldInStruct[0]' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -301,7 +323,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct S2 { public int MutableFieldInStruct2; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p.MutableFieldInStruct.MutableFieldInStruct2' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -318,7 +340,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct Buffer { private int element; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '++' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '++' assignment to 'p[0]' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -333,7 +355,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct S { public int MutableFieldInStruct; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '++' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '++' assignment to 'p.MutableFieldInStruct' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -352,7 +374,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct InnerBuffer { private int element; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '++' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '++' assignment to 'p[0][0]' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -370,7 +392,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct S { public int MutableFieldInStruct; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '++' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '++' assignment to 'p[0].MutableFieldInStruct' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -388,7 +410,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct Buffer { private int element; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '++' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '++' assignment to 'p.InlineArrayFieldInStruct[0]' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -404,7 +426,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct S2 { public int MutableFieldInStruct2; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '++' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '++' assignment to 'p.MutableFieldInStruct.MutableFieldInStruct2' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -421,7 +443,7 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             struct Buffer { private int element; }
             """,
             Diagnostic().WithLocation(1).WithMessage(
-                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '+=' assignment"));
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '+=' assignment to 'p[index]' which is stored inline within 'p'"));
     }
 
     [Test]
