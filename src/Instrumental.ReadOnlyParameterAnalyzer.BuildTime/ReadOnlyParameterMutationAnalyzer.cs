@@ -32,13 +32,25 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
         switch (context.Operation)
         {
             case IAssignmentOperation assignmentOperation:
-                AnalyzeAssignmentTarget(context, assignmentOperation.Target, ((AssignmentExpressionSyntax)assignmentOperation.Syntax).OperatorToken.ValueText);
+                var isRefAssignment = assignmentOperation is ISimpleAssignmentOperation { IsRef: true };
+                AnalyzeAssignmentTarget(
+                    context,
+                    assignmentOperation.Target,
+                    isRefAssignment ? "= ref" : ((AssignmentExpressionSyntax)assignmentOperation.Syntax).OperatorToken.ValueText,
+                    isRefAssignment,
+                    inlineTarget: null);
                 break;
             case IIncrementOrDecrementOperation incrementOrDecrementOperation:
-                AnalyzeAssignmentTarget(context, incrementOrDecrementOperation.Target, incrementOrDecrementOperation.Kind == OperationKind.Increment ? "++" : "--");
+                AnalyzeAssignmentTarget(
+                    context,
+                    incrementOrDecrementOperation.Target,
+                    incrementOrDecrementOperation.Kind == OperationKind.Increment ? "++" : "--",
+                    isRefAssignment: false,
+                    inlineTarget: null);
                 break;
             case IInvocationOperation { Instance.Type.IsReferenceType: false, TargetMethod.IsReadOnly: false } invocationOperation:
-                if (IsReadOnlyParameterReference(invocationOperation.Instance, out var diagnosticCreator))
+                if (IsReadOnlyParameterReference(invocationOperation.Instance, out var diagnosticCreator)
+                    && diagnosticCreator.ParameterReference.Parameter.RefKind == RefKind.None)
                 {
                     context.ReportDiagnostic(diagnosticCreator.Create(
                         mutatedBy: $"invoking a non-readonly struct method '{invocationOperation.TargetMethod.Name}'",
@@ -48,22 +60,24 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static void AnalyzeAssignmentTarget(OperationAnalysisContext context, IOperation target, string operatorText, IOperation inlineTarget = null)
+    private static void AnalyzeAssignmentTarget(OperationAnalysisContext context, IOperation target, string operatorText, bool isRefAssignment, IOperation inlineTarget)
     {
         if (target is ITupleOperation tupleOperation)
         {
             foreach (var element in tupleOperation.Elements)
-                AnalyzeAssignmentTarget(context, element, operatorText);
+                AnalyzeAssignmentTarget(context, element, operatorText, isRefAssignment, inlineTarget: null);
         }
-        else if (target is IFieldReferenceOperation { Field.RefKind: RefKind.None, Instance.Type.IsValueType: true } fieldReference)
+        else if (target is IFieldReferenceOperation { Instance.Type.IsValueType: true } fieldReference)
         {
-            AnalyzeAssignmentTarget(context, fieldReference.Instance, operatorText, inlineTarget ?? target);
+            if (fieldReference.Field.RefKind == RefKind.None || isRefAssignment)
+                AnalyzeAssignmentTarget(context, fieldReference.Instance, operatorText, isRefAssignment: false, inlineTarget: inlineTarget ?? target);
         }
         else if (target is IInlineArrayAccessOperation inlineArrayAccess)
         {
-            AnalyzeAssignmentTarget(context, inlineArrayAccess.Instance, operatorText, inlineTarget ?? target);
+            AnalyzeAssignmentTarget(context, inlineArrayAccess.Instance, operatorText, isRefAssignment: false, inlineTarget: inlineTarget ?? target);
         }
-        else if (IsReadOnlyParameterReference(target, out var diagnosticCreator))
+        else if (IsReadOnlyParameterReference(target, out var diagnosticCreator)
+            && (isRefAssignment || diagnosticCreator.ParameterReference.Parameter.RefKind == RefKind.None))
         {
             var mutatedBy = new StringBuilder();
             mutatedBy.Append("'").Append(operatorText).Append("' assignment");

@@ -90,4 +90,109 @@ public class MemberAccessTests : Framework.AnalyzerTests<ReadOnlyParameterMutati
             interface I { void M(); }
             """);
     }
+
+    [Test]
+    public async Task ReadOnly_ref_parameter_mutating_struct_method_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] ref S p) => p.Mutate();
+            }
+            struct S
+            {
+                public int Value;
+                public void Mutate() => Value++;
+            }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_out_parameter_mutating_struct_method_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] out S p)
+                {
+                    p = default;
+                    p.Mutate();
+                }
+            }
+            struct S
+            {
+                public int Value;
+                public void Mutate() => Value++;
+            }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_ref_readonly_parameter_mutating_struct_method_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] ref readonly S p) => p.Mutate();
+            }
+            struct S
+            {
+                public int Value;
+                public void Mutate() => Value++;
+            }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_in_parameter_mutating_struct_method_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] in S p) => p.Mutate();
+            }
+            struct S
+            {
+                public int Value;
+                public void Mutate() => Value++;
+            }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_ref_parameter_mutating_generic_method_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M<T>([ReadOnly] ref T p) where T : I => p.Mutate();
+            }
+            interface I { void Mutate(); }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_parameter_ref_field_mutating_struct_method_allowed()
+    {
+        await DefaultConfig
+            .WithReferenceAssemblies(Microsoft.CodeAnalysis.Testing.ReferenceAssemblies.Net.Net100)
+            .RunTestAsync("""
+                using Instrumental.Annotations;
+                class C
+                {
+                    void M([ReadOnly] Outer p) => p.MutableRefFieldInStruct.Mutate();
+                }
+                ref struct Outer { public ref Inner MutableRefFieldInStruct; }
+                struct Inner
+                {
+                    public int Value;
+                    public void Mutate() => Value++;
+                }
+                """);
+    }
 }
