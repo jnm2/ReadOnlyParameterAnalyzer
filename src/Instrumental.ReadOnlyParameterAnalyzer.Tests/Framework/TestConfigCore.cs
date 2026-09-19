@@ -1,4 +1,4 @@
-﻿namespace Instrumental.ReadOnlyParameterAnalyzer.Tests;
+﻿namespace Instrumental.ReadOnlyParameterAnalyzer.Tests.Framework;
 
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Testing;

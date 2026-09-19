@@ -1,4 +1,4 @@
-﻿namespace Instrumental.ReadOnlyParameterAnalyzer.Tests;
+﻿namespace Instrumental.ReadOnlyParameterAnalyzer.Tests.Framework;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeFixes;
