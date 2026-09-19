@@ -641,6 +641,364 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
     }
 
     [Test]
+    public async Task ReadOnly_indexer_parameter_simple_assignment_in_getter()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                int this[[ReadOnly] int p]
+                {
+                    get => {|#1:p|} = 5;
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_indexer_parameter_simple_assignment_in_setter()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                int this[[ReadOnly] int p]
+                {
+                    set => {|#1:p|} = value;
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_regular_method_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] int p) => {|#1:p|} = 5;
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_regular_constructor_parameter_simple_assignment_in_body()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                public C([ReadOnly] int p) => {|#1:p|} = 5;
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_local_function_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M()
+                {
+                    void Local([ReadOnly] int p) => {|#1:p|} = 5;
+                    Local(0);
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_lambda_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                System.Action<int> M() => ([ReadOnly] int p) => {|#1:p|} = 5;
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_unary_operator_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                public static C operator -([ReadOnly] C p) => {|#1:p|} = new C();
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_binary_operator_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                public static C operator +([ReadOnly] C p, C other) => {|#1:p|} = other;
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_implicit_conversion_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                public static implicit operator C([ReadOnly] int p)
+                {
+                    {|#1:p|} = 5;
+                    return new C();
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_explicit_conversion_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                public static explicit operator C([ReadOnly] int p)
+                {
+                    {|#1:p|} = 5;
+                    return new C();
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_extension_method_receiver_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            static class C
+            {
+                public static void M([ReadOnly] this int p) => {|#1:p|} = 5;
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_extension_block_receiver_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            static class C
+            {
+                extension([ReadOnly] int p)
+                {
+                    public void M() => {|#1:p|} = 5;
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_extension_block_method_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            static class C
+            {
+                extension(int receiver)
+                {
+                    public void M([ReadOnly] int p) => {|#1:p|} = 5;
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_property_setter_value_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                int P
+                {
+                    [param: ReadOnly]
+                    set => {|#1:value|} = 5;
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'value' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_property_init_value_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                int P
+                {
+                    [param: ReadOnly]
+                    init => {|#1:value|} = 5;
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'value' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_indexer_setter_value_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                int this[int index]
+                {
+                    [param: ReadOnly]
+                    set => {|#1:value|} = 5;
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'value' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_indexer_init_value_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                int this[int index]
+                {
+                    [param: ReadOnly]
+                    init => {|#1:value|} = 5;
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'value' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_event_add_value_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                event System.Action E
+                {
+                    [param: ReadOnly]
+                    add => {|#1:value|} = null;
+                    remove { }
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'value' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_event_remove_value_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                event System.Action E
+                {
+                    add { }
+                    [param: ReadOnly]
+                    remove => {|#1:value|} = null;
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'value' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_struct_primary_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            struct S([ReadOnly] int p)
+            {
+                void M() => {|#1:p|} = 5;
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_record_class_primary_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            record C([ReadOnly] int p)
+            {
+                private int field = {|#1:p|} = 5;
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_record_struct_primary_parameter_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            record struct S([ReadOnly] int p)
+            {
+                private int field = {|#1:p|} = 5;
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
     public async Task ReadOnly_ref_parameter_ref_assignment()
     {
         await DefaultConfig.RunTestAsync("""
