@@ -23,6 +23,48 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
     }
 
     [Test]
+    [Arguments("+=")]
+    [Arguments("-=")]
+    [Arguments("*=")]
+    [Arguments("/=")]
+    [Arguments("%=")]
+    [Arguments("&=")]
+    [Arguments("|=")]
+    [Arguments("^=")]
+    [Arguments("<<=")]
+    [Arguments(">>=")]
+    [Arguments(">>>=")]
+    [Arguments("??=")]
+    public async Task ReadOnly_primary_parameter_compound_assignment_in_method_body(string assignmentOperator)
+    {
+        await DefaultConfig.RunTestAsync($$"""
+            using Instrumental.Annotations;
+            class C([ReadOnly] int? p)
+            {
+                void M() => {|#1:p|} {{assignmentOperator}} 5;
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                $"Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '{assignmentOperator}' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_primary_parameter_deconstructing_assignment_in_method_body()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C([ReadOnly] int p, [ReadOnly] int p2)
+            {
+                void M() => ({|#1:p|}, ({|#2:p2|}, _)) = (5, (6, 7));
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"),
+            Diagnostic().WithLocation(2).WithMessage(
+                "Parameter 'p2' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
     public async Task ReadOnly_primary_parameter_simple_assignment_in_field_initializer()
     {
         await DefaultConfig.RunTestAsync("""

@@ -29,23 +29,31 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
         switch (context.Operation)
         {
             case IAssignmentOperation assignmentOperation:
-                if (IsReadOnlyParameterReference(assignmentOperation.Target, out var diagnosticCreator))
-                {
-                    var operatorText = ((AssignmentExpressionSyntax)assignmentOperation.Syntax).OperatorToken.ValueText;
-
-                    context.ReportDiagnostic(diagnosticCreator.Create(
-                        mutatedBy: $"'{operatorText}' assignment",
-                        isMissingDefensiveCopy: false));
-                }
+                AnalyzeAssignmentTarget(context, assignmentOperation.Target, ((AssignmentExpressionSyntax)assignmentOperation.Syntax).OperatorToken.ValueText);
                 break;
             case IInvocationOperation { Instance.Type.IsReferenceType: false, TargetMethod.IsReadOnly: false } invocationOperation:
-                if (IsReadOnlyParameterReference(invocationOperation.Instance, out diagnosticCreator))
+                if (IsReadOnlyParameterReference(invocationOperation.Instance, out var diagnosticCreator))
                 {
                     context.ReportDiagnostic(diagnosticCreator.Create(
                         mutatedBy: $"invoking a non-readonly struct method '{invocationOperation.TargetMethod.Name}'",
                         isMissingDefensiveCopy: true));
                 }
                 break;
+        }
+    }
+
+    private static void AnalyzeAssignmentTarget(OperationAnalysisContext context, IOperation target, string operatorText)
+    {
+        if (target is ITupleOperation tupleOperation)
+        {
+            foreach (var element in tupleOperation.Elements)
+                AnalyzeAssignmentTarget(context, element, operatorText);
+        }
+        else if (IsReadOnlyParameterReference(target, out var diagnosticCreator))
+        {
+            context.ReportDiagnostic(diagnosticCreator.Create(
+                mutatedBy: $"'{operatorText}' assignment",
+                isMissingDefensiveCopy: false));
         }
     }
 
