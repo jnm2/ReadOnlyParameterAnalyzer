@@ -1,6 +1,6 @@
 ﻿#if !NET5_0_OR_GREATER
 namespace System.Runtime.CompilerServices;
 
-[System.AttributeUsage(System.AttributeTargets.Method, Inherited = false)]
+[AttributeUsage(System.AttributeTargets.Method, Inherited = false)]
 internal sealed class ModuleInitializerAttribute : Attribute;
 #endif

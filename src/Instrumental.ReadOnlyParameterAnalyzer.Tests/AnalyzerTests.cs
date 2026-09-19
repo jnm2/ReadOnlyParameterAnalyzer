@@ -15,9 +15,9 @@ public abstract class AnalyzerTests<TAnalyzer> : CSharpAnalyzerVerifier<TAnalyze
     {
         public TestConfig() { }
 
-        private TestConfig(Action<TestConfig.Test> setupActions) : base(setupActions) { }
+        private TestConfig(Action<Test> setupActions) : base(setupActions) { }
 
-        protected override TestConfig Create(Action<TestConfig.Test> setupActions) => new(setupActions);
+        protected override TestConfig Create(Action<Test> setupActions) => new(setupActions);
 
         public async Task RunTestAsync([StringSyntax("C#-Test")] string source, params IEnumerable<DiagnosticResult> expectedDiagnostics)
         {
@@ -51,7 +51,7 @@ public abstract class AnalyzerTests<TAnalyzer, TCodeFixProvider> : CSharpCodeFix
     {
         public TestConfig() { }
 
-        private TestConfig(Action<TestConfig.Test> setupActions) : base(setupActions) { }
+        private TestConfig(Action<Test> setupActions) : base(setupActions) { }
 
         protected override TestConfig Create(Action<Test> setupActions) => new(setupActions);
 
