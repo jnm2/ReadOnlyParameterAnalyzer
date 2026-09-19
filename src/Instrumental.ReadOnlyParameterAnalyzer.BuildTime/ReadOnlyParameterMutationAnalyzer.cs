@@ -33,13 +33,17 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
                 {
                     var operatorText = ((AssignmentExpressionSyntax)assignmentOperation.Syntax).OperatorToken.ValueText;
 
-                    context.ReportDiagnostic(diagnosticCreator.Create(mutatedBy: $"'{operatorText}' assignment"));
+                    context.ReportDiagnostic(diagnosticCreator.Create(
+                        mutatedBy: $"'{operatorText}' assignment",
+                        isMissingDefensiveCopy: false));
                 }
                 break;
             case IInvocationOperation { Instance.Type.IsReferenceType: false, TargetMethod.IsReadOnly: false } invocationOperation:
                 if (IsReadOnlyParameterReference(invocationOperation.Instance, out diagnosticCreator))
                 {
-                    context.ReportDiagnostic(diagnosticCreator.Create(mutatedBy: $"invoking a non-readonly struct method '{invocationOperation.TargetMethod.Name}'"));
+                    context.ReportDiagnostic(diagnosticCreator.Create(
+                        mutatedBy: $"invoking a non-readonly struct method '{invocationOperation.TargetMethod.Name}'",
+                        isMissingDefensiveCopy: true));
                 }
                 break;
         }
@@ -49,7 +53,7 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
         IParameterReferenceOperation parameterReference,
         SyntaxReference applicationSyntaxReference)
     {
-        public Diagnostic Create(string mutatedBy)
+        public Diagnostic Create(string mutatedBy, bool isMissingDefensiveCopy)
         {
             if (applicationSyntaxReference is null)
                 throw new NotImplementedException("TODO: cover defaults (editorconfig or csproj)");
@@ -58,8 +62,8 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
 
             var properties = ImmutableDictionary.CreateBuilder<string, string>();
             properties.Add(Diagnostics.ReadOnlyParameterMutation.Properties.ParameterName, parameterReference.Parameter.Name);
-            // TODO: conditional
-            properties.Add(Diagnostics.ReadOnlyParameterMutation.Properties.DefensiveCopyFix, null);
+            if (isMissingDefensiveCopy)
+                properties.Add(Diagnostics.ReadOnlyParameterMutation.Properties.DefensiveCopyFix, null);
 
             return Diagnostic.Create(
                 Diagnostics.ReadOnlyParameterMutation.Descriptor,

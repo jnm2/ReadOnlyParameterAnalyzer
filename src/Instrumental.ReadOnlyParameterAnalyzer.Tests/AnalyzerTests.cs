@@ -61,6 +61,13 @@ public abstract class AnalyzerTests<TAnalyzer, TCodeFixProvider> : CSharpCodeFix
             ApplySetupActions(test);
             test.TestState.Sources.Add(source);
             test.ExpectedDiagnostics.AddRange(expectedDiagnostics);
+
+            // Since the test setup involves a code fix but no code fix is expected, the user intends to assert that no
+            // fix is offered.
+            test.FixedState.InheritanceMode = StateInheritanceMode.AutoInheritAll;
+            test.NumberOfIncrementalIterations = 0;
+            test.NumberOfFixAllIterations = 0;
+
             await RunTestAsync(test);
         }
 
