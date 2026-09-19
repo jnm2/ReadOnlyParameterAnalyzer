@@ -32,6 +32,11 @@ public abstract class TestConfigCore<TSelf, TTest>()
         return With(test => test.LanguageVersion = languageVersion);
     }
 
+    public TSelf WithReferenceAssemblies(ReferenceAssemblies referenceAssemblies)
+    {
+        return With(test => test.ReferenceAssemblies = referenceAssemblies);
+    }
+
     public TSelf AddSource(string fileName, [StringSyntax("C#-Test")] string source)
     {
         return With(test => test.TestState.Sources.Add((fileName, source)));

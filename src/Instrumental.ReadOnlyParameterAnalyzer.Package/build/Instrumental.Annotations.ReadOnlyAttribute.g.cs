@@ -57,6 +57,9 @@ namespace Instrumental.Annotations
     /// <item>If <c>p</c>'s element type is also an inline array, <c>p[0][0] = newValue</c> is disallowed, etc.</item>
     /// </list>
     /// </item>
+    /// <item>
+    /// Pointers may be taken to a readonly parameter, and the parameter may be mutated through the pointer.
+    /// </item>
     /// </list>
     /// </para>
     /// </summary>
