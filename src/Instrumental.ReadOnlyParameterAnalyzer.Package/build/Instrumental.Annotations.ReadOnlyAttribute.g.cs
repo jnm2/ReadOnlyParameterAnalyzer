@@ -42,16 +42,17 @@ namespace Instrumental.Annotations
     /// <list type="bullet">
     /// <item><c>p.MutableField = newValue</c> is disallowed, <c>M(ref p.MutableField)</c> is disallowed,
     /// <c>p.MutableField.NonReadOnlyStructMember()</c> is disallowed, etc.</item>
-    /// <item><c>p.MutableField.MutableField2 = newValue</c> is disallowed, etc.</item>
+    /// <item><c>p.StructTypedMutableField.MutableField = newValue</c> is disallowed, etc.</item>
     /// </list>
     /// </item>
     /// <item>
-    /// If the type of the parameter is an inline array, this entire list of rules also applies recursively to its
-    /// elements.
+    /// If the type of the parameter is an inline array, it must not be cast to <see cref="Span{T}"/>, and this entire
+    /// list of rules also applies recursively to its elements and to the iteration variable of a <c>foreach</c> loop
+    /// over the inline array.
     /// <list type="bullet">
     /// <item><c>p[0] = newValue</c> is disallowed, <c>M(ref p[0])</c> is disallowed,
     /// <c>p[0].NonReadOnlyStructMember()</c> is disallowed, etc.</item>
-    /// <item><c>p[0].MutableStructField = newValue</c> is disallowed, <c>p.InlineArrayField[0] = newValue</c> is
+    /// <item><c>p[0].MutableFieldInStruct = newValue</c> is disallowed, <c>p.InlineArrayField[0] = newValue</c> is
     /// disallowed, etc.</item>
     /// <item>If <c>p</c>'s element type is also an inline array, <c>p[0][0] = newValue</c> is disallowed, etc.</item>
     /// </list>
