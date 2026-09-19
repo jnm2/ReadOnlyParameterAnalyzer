@@ -64,6 +64,7 @@ namespace Instrumental.Annotations
     /// </para>
     /// </summary>
     [global::System.AttributeUsage(global::System.AttributeTargets.Parameter, Inherited = false)]
+    [global::System.Diagnostics.Conditional("NEVER")]
     internal sealed class ReadOnlyAttribute : global::System.Attribute
     {
         public ReadOnlyAttribute() : this(readOnly: true) { }
