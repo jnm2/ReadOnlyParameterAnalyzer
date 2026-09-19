@@ -15,9 +15,11 @@ public class ReadOnlyParameterMutationTests : AnalyzerTests<ReadOnlyParameterMut
             using Instrumental.Annotations;
             class C([ReadOnly] int p)
             {
-                int f = {|IRP0001:p|} = 5;
+                int f = {|#1:p|} = 5;
             }
-            """);
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
     }
 
     [Test]
@@ -27,10 +29,12 @@ public class ReadOnlyParameterMutationTests : AnalyzerTests<ReadOnlyParameterMut
             using Instrumental.Annotations;
             class C([ReadOnly] S p)
             {
-                void M() => {|IRP0001:p|}.M();
+                void M() => {|#1:p|}.M();
             }
             struct S { public void M() { } }
-            """, """
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by invoking a non-readonly struct method 'M'"), """
             using Instrumental.Annotations;
             class C([ReadOnly] S p)
             {
@@ -86,10 +90,12 @@ public class ReadOnlyParameterMutationTests : AnalyzerTests<ReadOnlyParameterMut
             using Instrumental.Annotations;
             class C<T>([ReadOnly] T p) where T : I
             {
-                void M() => {|IRP0001:p|}.M();
+                void M() => {|#1:p|}.M();
             }
             interface I { void M(); }
-            """, """
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by invoking a non-readonly struct method 'M'"), """
             using Instrumental.Annotations;
             class C<T>([ReadOnly] T p) where T : I
             {
