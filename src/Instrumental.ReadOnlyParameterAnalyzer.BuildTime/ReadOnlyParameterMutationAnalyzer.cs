@@ -21,6 +21,8 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
             OperationKind.CompoundAssignment,
             OperationKind.CoalesceAssignment,
             OperationKind.DeconstructionAssignment,
+            OperationKind.Increment,
+            OperationKind.Decrement,
             OperationKind.Invocation);
     }
 
@@ -30,6 +32,9 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
         {
             case IAssignmentOperation assignmentOperation:
                 AnalyzeAssignmentTarget(context, assignmentOperation.Target, ((AssignmentExpressionSyntax)assignmentOperation.Syntax).OperatorToken.ValueText);
+                break;
+            case IIncrementOrDecrementOperation incrementOrDecrementOperation:
+                AnalyzeAssignmentTarget(context, incrementOrDecrementOperation.Target, incrementOrDecrementOperation.Kind == OperationKind.Increment ? "++" : "--");
                 break;
             case IInvocationOperation { Instance.Type.IsReferenceType: false, TargetMethod.IsReadOnly: false } invocationOperation:
                 if (IsReadOnlyParameterReference(invocationOperation.Instance, out var diagnosticCreator))
@@ -48,6 +53,14 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
         {
             foreach (var element in tupleOperation.Elements)
                 AnalyzeAssignmentTarget(context, element, operatorText);
+        }
+        else if (target is IFieldReferenceOperation { Field.RefKind: RefKind.None, Instance.Type.IsValueType: true } fieldReference)
+        {
+            AnalyzeAssignmentTarget(context, fieldReference.Instance, operatorText);
+        }
+        else if (target is IInlineArrayAccessOperation inlineArrayAccess)
+        {
+            AnalyzeAssignmentTarget(context, inlineArrayAccess.Instance, operatorText);
         }
         else if (IsReadOnlyParameterReference(target, out var diagnosticCreator))
         {
