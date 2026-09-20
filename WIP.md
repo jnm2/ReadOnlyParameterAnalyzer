@@ -1,6 +1,5 @@
 - Build out readme
 - Build out package
-- `ref readonlyField`
 - Defensive copies:
   - More robust fix using temp (explicit conversion not spec-guaranteed)
   - Incl implicitly through `foreach` and other constructs but only if they don't _always_ copy regardless of readonly

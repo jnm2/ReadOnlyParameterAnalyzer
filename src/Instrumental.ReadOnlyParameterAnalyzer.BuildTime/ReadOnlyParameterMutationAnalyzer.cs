@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
@@ -24,7 +25,11 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
             OperationKind.DeconstructionAssignment,
             OperationKind.Increment,
             OperationKind.Decrement,
-            OperationKind.Invocation);
+            OperationKind.Invocation,
+            OperationKind.Argument,
+            OperationKind.VariableDeclarator,
+            OperationKind.DynamicInvocation,
+            OperationKind.DynamicObjectCreation);
     }
 
     private static void AnalyzeOperation(OperationAnalysisContext context)
@@ -33,20 +38,36 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
         {
             case IAssignmentOperation assignmentOperation:
                 var isRefAssignment = assignmentOperation is ISimpleAssignmentOperation { IsRef: true };
-                AnalyzeAssignmentTarget(
+                var operatorText = isRefAssignment ? "= ref" : ((AssignmentExpressionSyntax)assignmentOperation.Syntax).OperatorToken.ValueText;
+                AnalyzeMutationTarget(
                     context,
                     assignmentOperation.Target,
-                    isRefAssignment ? "= ref" : ((AssignmentExpressionSyntax)assignmentOperation.Syntax).OperatorToken.ValueText,
+                    $"'{operatorText}' assignment",
                     isRefAssignment,
                     inlineTarget: null);
+
+                if (isRefAssignment && IsWritableReference(assignmentOperation.Target))
+                    AnalyzeRefTaking(context, assignmentOperation.Value);
                 break;
             case IIncrementOrDecrementOperation incrementOrDecrementOperation:
-                AnalyzeAssignmentTarget(
+                AnalyzeMutationTarget(
                     context,
                     incrementOrDecrementOperation.Target,
-                    incrementOrDecrementOperation.Kind == OperationKind.Increment ? "++" : "--",
+                    incrementOrDecrementOperation.Kind == OperationKind.Increment ? "'++' assignment" : "'--' assignment",
                     isRefAssignment: false,
                     inlineTarget: null);
+                break;
+            case IArgumentOperation { Parameter.RefKind: RefKind.Ref or RefKind.Out } argumentOperation:
+                AnalyzeRefTaking(context, argumentOperation.Value);
+                break;
+            case IVariableDeclaratorOperation { Symbol.RefKind: RefKind.Ref, Initializer.Value: { } value }:
+                AnalyzeRefTaking(context, value);
+                break;
+            case IDynamicInvocationOperation dynamicInvocationOperation:
+                AnalyzeDynamicArguments(context, dynamicInvocationOperation.Arguments);
+                break;
+            case IDynamicObjectCreationOperation dynamicObjectCreationOperation:
+                AnalyzeDynamicArguments(context, dynamicObjectCreationOperation.Arguments);
                 break;
             case IInvocationOperation { Instance.Type.IsReferenceType: false, TargetMethod.IsReadOnly: false } invocationOperation:
                 if (IsReadOnlyParameterReference(invocationOperation.Instance, out var diagnosticCreator)
@@ -60,32 +81,59 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static void AnalyzeAssignmentTarget(OperationAnalysisContext context, IOperation target, string operatorText, bool isRefAssignment, IOperation inlineTarget)
+    private static void AnalyzeRefTaking(OperationAnalysisContext context, IOperation target)
+    {
+        AnalyzeMutationTarget(context, target, "taking a writable reference", isRefAssignment: false, inlineTarget: null);
+    }
+
+    private static bool IsWritableReference(IOperation operation)
+    {
+        return operation switch
+        {
+            ILocalReferenceOperation localReference => localReference.Local.RefKind == RefKind.Ref,
+            IParameterReferenceOperation parameterReference => parameterReference.Parameter.RefKind is RefKind.Ref or RefKind.Out,
+            IFieldReferenceOperation fieldReference => fieldReference.Field.RefKind == RefKind.Ref,
+            _ => false
+        };
+    }
+
+    private static void AnalyzeDynamicArguments(OperationAnalysisContext context, ImmutableArray<IOperation> arguments)
+    {
+        foreach (var argument in arguments)
+        {
+            if (argument.Syntax.Parent is ArgumentSyntax syntax
+                && syntax.RefKindKeyword.Kind() is SyntaxKind.RefKeyword or SyntaxKind.OutKeyword)
+            {
+                AnalyzeRefTaking(context, argument);
+            }
+        }
+    }
+
+    private static void AnalyzeMutationTarget(OperationAnalysisContext context, IOperation target, string mutationDescription, bool isRefAssignment, IOperation inlineTarget)
     {
         if (target is ITupleOperation tupleOperation)
         {
             foreach (var element in tupleOperation.Elements)
-                AnalyzeAssignmentTarget(context, element, operatorText, isRefAssignment, inlineTarget: null);
+                AnalyzeMutationTarget(context, element, mutationDescription, isRefAssignment, inlineTarget: null);
         }
         else if (target is IConditionalOperation { IsRef: true } conditionalOperation)
         {
-            AnalyzeAssignmentTarget(context, conditionalOperation.WhenTrue, operatorText, isRefAssignment, inlineTarget);
-            AnalyzeAssignmentTarget(context, conditionalOperation.WhenFalse, operatorText, isRefAssignment, inlineTarget);
+            AnalyzeMutationTarget(context, conditionalOperation.WhenTrue, mutationDescription, isRefAssignment, inlineTarget);
+            AnalyzeMutationTarget(context, conditionalOperation.WhenFalse, mutationDescription, isRefAssignment, inlineTarget);
         }
         else if (target is IFieldReferenceOperation { Instance.Type.IsValueType: true } fieldReference)
         {
             if (fieldReference.Field.RefKind == RefKind.None || isRefAssignment)
-                AnalyzeAssignmentTarget(context, fieldReference.Instance, operatorText, isRefAssignment: false, inlineTarget: inlineTarget ?? target);
+                AnalyzeMutationTarget(context, fieldReference.Instance, mutationDescription, isRefAssignment: false, inlineTarget: inlineTarget ?? target);
         }
         else if (target is IInlineArrayAccessOperation inlineArrayAccess)
         {
-            AnalyzeAssignmentTarget(context, inlineArrayAccess.Instance, operatorText, isRefAssignment: false, inlineTarget: inlineTarget ?? target);
+            AnalyzeMutationTarget(context, inlineArrayAccess.Instance, mutationDescription, isRefAssignment: false, inlineTarget: inlineTarget ?? target);
         }
         else if (IsReadOnlyParameterReference(target, out var diagnosticCreator)
             && (isRefAssignment || diagnosticCreator.ParameterReference.Parameter.RefKind == RefKind.None))
         {
-            var mutatedBy = new StringBuilder();
-            mutatedBy.Append("'").Append(operatorText).Append("' assignment");
+            var mutatedBy = new StringBuilder(mutationDescription);
 
             if (inlineTarget is not null)
             {
