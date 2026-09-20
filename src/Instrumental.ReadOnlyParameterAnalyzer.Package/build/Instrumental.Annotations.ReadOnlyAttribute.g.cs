@@ -6,6 +6,10 @@ namespace Instrumental.Annotations
     /// Indicates that the marked parameter should not be mutated.
     /// </para>
     /// <para>
+    /// This attribute has no effect on callers and is omitted from the compiled assembly. It is only used for static
+    /// analysis inside the containing declaration.
+    /// </para>
+    /// <para>
     /// The considerations for a readonly parameter follow by analogy from a <see langword="readonly"/> field:
     /// <list type="number">
     /// <item>

@@ -25,4 +25,15 @@ public static class Diagnostics
             public const string DefensiveCopyFix = "DefensiveCopyFix";
         }
     }
+
+    public static class InvalidReadOnlyParameter
+    {
+        public static readonly DiagnosticDescriptor Descriptor = new(
+            id: "IRP0002",
+            title: "ReadOnly attribute on a declaration without an executable body",
+            messageFormat: "Parameter '{0}' cannot be marked with [ReadOnly] because its containing declaration does not have an executable body to guard against mutations",
+            category: "Instrumental",
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true);
+    }
 }

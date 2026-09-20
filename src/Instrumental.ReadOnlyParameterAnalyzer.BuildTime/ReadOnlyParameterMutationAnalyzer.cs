@@ -135,7 +135,7 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
     {
         foreach (var attribute in symbol.GetAttributes())
         {
-            if (IsReadOnlyParameterAttribute(attribute)
+            if (ReadOnlyParameterMutationFacts.IsReadOnlyParameterAttribute(attribute)
                 && (attribute.ConstructorArguments.IsEmpty || attribute.ConstructorArguments[0].Value is false))
             {
                 applicationSyntaxReference = attribute.ApplicationSyntaxReference;
@@ -145,22 +145,5 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
 
         applicationSyntaxReference = null;
         return false;
-    }
-
-    public static bool IsReadOnlyParameterAttribute(AttributeData attribute)
-    {
-        return attribute.AttributeClass is
-        {
-            Name: "ReadOnlyAttribute",
-            ContainingSymbol: INamespaceSymbol
-            {
-                Name: "Annotations",
-                ContainingNamespace:
-                {
-                    Name: "Instrumental",
-                    ContainingNamespace.IsGlobalNamespace: true
-                }
-            }
-        };
     }
 }
