@@ -1293,4 +1293,256 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             ref struct Inner { public ref int MutableRefFieldInStruct; }
             """);
     }
+
+    [Test]
+    public async Task ReadOnly_ref_conditional_simple_assignment_checks_both_branches()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] int p, [ReadOnly] int p2, bool condition)
+                {
+                    (condition ? ref {|#1:p|} : ref {|#2:p2|}) = 5;
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"),
+            Diagnostic().WithLocation(2).WithMessage(
+                "Parameter 'p2' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    [Arguments("+=")]
+    [Arguments("??=")]
+    public async Task ReadOnly_ref_conditional_compound_assignment(string assignmentOperator)
+    {
+        await DefaultConfig.RunTestAsync($$"""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] int? p, int? other, bool condition)
+                {
+                    (condition ? ref {|#1:p|} : ref other) {{assignmentOperator}} 5;
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                $"Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '{assignmentOperator}' assignment"));
+    }
+
+    [Test]
+    [Arguments("++")]
+    [Arguments("--")]
+    public async Task ReadOnly_ref_conditional_prefix_increment_or_decrement(string assignmentOperator)
+    {
+        await DefaultConfig.RunTestAsync($$"""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] int p, int other, bool condition)
+                {
+                    {{assignmentOperator}}(condition ? ref other : ref {|#1:p|});
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                $"Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '{assignmentOperator}' assignment"));
+    }
+
+    [Test]
+    [Arguments("++")]
+    [Arguments("--")]
+    public async Task ReadOnly_ref_conditional_postfix_increment_or_decrement(string assignmentOperator)
+    {
+        await DefaultConfig.RunTestAsync($$"""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] int p, int other, bool condition)
+                {
+                    (condition ? ref {|#1:p|} : ref other){{assignmentOperator}};
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                $"Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '{assignmentOperator}' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_ref_conditional_deconstructing_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] int p, int other, bool condition)
+                {
+                    ((condition ? ref {|#1:p|} : ref other), _) = (5, 6);
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_ref_conditional_nested_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] int p, int other, bool first, bool second)
+                {
+                    (first ? ref other : ref (second ? ref {|#1:p|} : ref other)) = 5;
+                }
+            }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_ref_conditional_struct_field_branch_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] S p, S other, bool condition)
+                {
+                    (condition ? ref {|#1:p|}.MutableFieldInStruct : ref other.MutableFieldInStruct) = 5;
+                }
+            }
+            struct S { public int MutableFieldInStruct; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p.MutableFieldInStruct' which is stored inline within 'p'"));
+    }
+
+    [Test]
+    public async Task ReadOnly_ref_conditional_struct_receiver_field_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] S p, S other, bool condition)
+                {
+                    (condition ? ref {|#1:p|} : ref other).MutableFieldInStruct = 5;
+                }
+            }
+            struct S { public int MutableFieldInStruct; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to '(condition ? ref p : ref other).MutableFieldInStruct' which is stored inline within 'p'"));
+    }
+
+    [Test]
+    public async Task ReadOnly_ref_conditional_inline_array_receiver_element_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            using System.Runtime.CompilerServices;
+            class C
+            {
+                void M([ReadOnly] Buffer p, Buffer other, bool condition)
+                {
+                    (condition ? ref {|#1:p|} : ref other)[0] = 5;
+                }
+            }
+            [InlineArray(2)]
+            struct Buffer { private int element; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to '(condition ? ref p : ref other)[0]' which is stored inline within 'p'"));
+    }
+
+    [Test]
+    public async Task ReadOnly_ref_conditional_byref_parameter_value_assignments_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] ref int p, ref int other, bool condition)
+                {
+                    (condition ? ref p : ref other) = 5;
+                    (condition ? ref p : ref other) += 1;
+                    (condition ? ref p : ref other)++;
+                }
+            }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_ref_conditional_class_field_assignment_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] S p, S other, bool condition)
+                {
+                    (condition ? ref p.MutableFieldInClass : ref other.MutableFieldInClass) = 5;
+                    (condition ? p : other).MutableFieldInClass = 6;
+                }
+            }
+            class S { public int MutableFieldInClass; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_ref_conditional_struct_receiver_ref_field_ref_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                static int value;
+                void M([ReadOnly] S p, S other, bool condition)
+                {
+                    (condition ? ref {|#1:p|} : ref other).MutableRefFieldInStruct = ref value;
+                }
+            }
+            ref struct S { public ref int MutableRefFieldInStruct; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '= ref' assignment to '(condition ? ref p : ref other).MutableRefFieldInStruct' which is stored inline within 'p'"));
+    }
+
+    [Test]
+    public async Task ReadOnly_ref_conditional_struct_receiver_ref_field_value_assignment_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                void M([ReadOnly] S p, S other, bool condition)
+                {
+                    (condition ? ref p : ref other).MutableRefFieldInStruct = 5;
+                }
+            }
+            ref struct S { public ref int MutableRefFieldInStruct; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_ref_conditional_byref_receiver_ref_field_ref_assignment_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                static int value;
+                void M([ReadOnly] ref S p, ref S other, bool condition)
+                {
+                    (condition ? ref p : ref other).MutableRefFieldInStruct = ref value;
+                }
+            }
+            ref struct S { public ref int MutableRefFieldInStruct; }
+            """);
+    }
 }

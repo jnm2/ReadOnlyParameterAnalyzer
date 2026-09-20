@@ -67,6 +67,11 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
             foreach (var element in tupleOperation.Elements)
                 AnalyzeAssignmentTarget(context, element, operatorText, isRefAssignment, inlineTarget: null);
         }
+        else if (target is IConditionalOperation { IsRef: true } conditionalOperation)
+        {
+            AnalyzeAssignmentTarget(context, conditionalOperation.WhenTrue, operatorText, isRefAssignment, inlineTarget);
+            AnalyzeAssignmentTarget(context, conditionalOperation.WhenFalse, operatorText, isRefAssignment, inlineTarget);
+        }
         else if (target is IFieldReferenceOperation { Instance.Type.IsValueType: true } fieldReference)
         {
             if (fieldReference.Field.RefKind == RefKind.None || isRefAssignment)
