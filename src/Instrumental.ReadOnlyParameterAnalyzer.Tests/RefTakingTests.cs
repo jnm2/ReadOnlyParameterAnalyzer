@@ -568,6 +568,32 @@ public class RefTakingTests : Framework.AnalyzerTests<ReadOnlyParameterMutationA
     }
 
     [Test]
+    public async Task ReadOnly_primary_parameter_fixed_buffer_element_writable_references()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C([ReadOnly] S p)
+            {
+                void M()
+                {
+                    Mutate(ref {|#1:p|}.FixedBuffer[0]);
+                    Initialize(out {|#2:p|}.FixedBuffer[0]);
+                    ref int alias = ref {|#3:p|}.FixedBuffer[0];
+                }
+                static void Mutate(ref int value) { }
+                static void Initialize(out int value) => value = 1;
+            }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by taking a writable reference to 'p.FixedBuffer[0]' which is stored inline within 'p'"),
+            Diagnostic().WithLocation(2).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by taking a writable reference to 'p.FixedBuffer[0]' which is stored inline within 'p'"),
+            Diagnostic().WithLocation(3).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by taking a writable reference to 'p.FixedBuffer[0]' which is stored inline within 'p'"));
+    }
+
+    [Test]
     public async Task ReadOnly_parameter_inline_array_element_writable_references()
     {
         await DefaultConfig.RunTestAsync("""
@@ -621,6 +647,33 @@ public class RefTakingTests : Framework.AnalyzerTests<ReadOnlyParameterMutationA
     }
 
     [Test]
+    public async Task ReadOnly_primary_parameter_mutable_struct_field_fixed_buffer_element_writable_references()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C([ReadOnly] Outer p)
+            {
+                void M()
+                {
+                    Mutate(ref {|#1:p|}.MutableFieldInStruct.FixedBuffer[0]);
+                    Initialize(out {|#2:p|}.MutableFieldInStruct.FixedBuffer[0]);
+                    ref int alias = ref {|#3:p|}.MutableFieldInStruct.FixedBuffer[0];
+                }
+                static void Mutate(ref int value) { }
+                static void Initialize(out int value) => value = 1;
+            }
+            struct Outer { public S MutableFieldInStruct; }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by taking a writable reference to 'p.MutableFieldInStruct.FixedBuffer[0]' which is stored inline within 'p'"),
+            Diagnostic().WithLocation(2).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by taking a writable reference to 'p.MutableFieldInStruct.FixedBuffer[0]' which is stored inline within 'p'"),
+            Diagnostic().WithLocation(3).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by taking a writable reference to 'p.MutableFieldInStruct.FixedBuffer[0]' which is stored inline within 'p'"));
+    }
+
+    [Test]
     public async Task ReadOnly_parameter_nested_inline_array_element_writable_references()
     {
         await DefaultConfig.RunTestAsync("""
@@ -671,6 +724,35 @@ public class RefTakingTests : Framework.AnalyzerTests<ReadOnlyParameterMutationA
                 "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by taking a writable reference to 'p[0].MutableFieldInStruct' which is stored inline within 'p'"),
             Diagnostic().WithLocation(2).WithMessage(
                 "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by taking a writable reference to 'p[0].MutableFieldInStruct' which is stored inline within 'p'"));
+    }
+
+    [Test]
+    public async Task ReadOnly_primary_parameter_inline_array_element_fixed_buffer_element_writable_references()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            using System.Runtime.CompilerServices;
+            unsafe class C([ReadOnly] Buffer p)
+            {
+                void M()
+                {
+                    Mutate(ref {|#1:p|}[0].FixedBuffer[0]);
+                    Initialize(out {|#2:p|}[0].FixedBuffer[0]);
+                    ref int alias = ref {|#3:p|}[0].FixedBuffer[0];
+                }
+                static void Mutate(ref int value) { }
+                static void Initialize(out int value) => value = 1;
+            }
+            [InlineArray(2)]
+            struct Buffer { private S element; }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by taking a writable reference to 'p[0].FixedBuffer[0]' which is stored inline within 'p'"),
+            Diagnostic().WithLocation(2).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by taking a writable reference to 'p[0].FixedBuffer[0]' which is stored inline within 'p'"),
+            Diagnostic().WithLocation(3).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by taking a writable reference to 'p[0].FixedBuffer[0]' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -760,6 +842,70 @@ public class RefTakingTests : Framework.AnalyzerTests<ReadOnlyParameterMutationA
     }
 
     [Test]
+    public async Task ReadOnly_primary_parameter_fixed_buffer_element_ref_local_reassignment_rhs()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C([ReadOnly] S p)
+            {
+                void M()
+                {
+                    int other = 0;
+                    ref int alias = ref other;
+                    alias = ref {|#1:p|}.FixedBuffer[0];
+                }
+            }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by taking a writable reference to 'p.FixedBuffer[0]' which is stored inline within 'p'"));
+    }
+
+    [Test]
+    public async Task ReadOnly_primary_parameter_mutable_struct_field_fixed_buffer_element_ref_local_reassignment_rhs()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C([ReadOnly] Outer p)
+            {
+                void M()
+                {
+                    int other = 0;
+                    ref int alias = ref other;
+                    alias = ref {|#1:p|}.MutableFieldInStruct.FixedBuffer[0];
+                }
+            }
+            struct Outer { public S MutableFieldInStruct; }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by taking a writable reference to 'p.MutableFieldInStruct.FixedBuffer[0]' which is stored inline within 'p'"));
+    }
+
+    [Test]
+    public async Task ReadOnly_primary_parameter_inline_array_element_fixed_buffer_element_ref_local_reassignment_rhs()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            using System.Runtime.CompilerServices;
+            unsafe class C([ReadOnly] Buffer p)
+            {
+                void M()
+                {
+                    int other = 0;
+                    ref int alias = ref other;
+                    alias = ref {|#1:p|}[0].FixedBuffer[0];
+                }
+            }
+            [InlineArray(2)]
+            struct Buffer { private S element; }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by taking a writable reference to 'p[0].FixedBuffer[0]' which is stored inline within 'p'"));
+    }
+
+    [Test]
     public async Task ReadOnly_parameter_nested_storage_readonly_references_allowed()
     {
         await DefaultConfig.RunTestAsync("""
@@ -783,6 +929,76 @@ public class RefTakingTests : Framework.AnalyzerTests<ReadOnlyParameterMutationA
             struct Buffer { private S element; }
             struct S { public int MutableFieldInStruct; }
             ref struct Holder { public ref readonly int Value; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_primary_parameter_fixed_buffer_element_readonly_references_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C([ReadOnly] S p)
+            {
+                void M()
+                {
+                    Read(in p.FixedBuffer[0]);
+                    ReadReference(ref p.FixedBuffer[0]);
+                    ReadReference(in p.FixedBuffer[0]);
+                    ref readonly int alias = ref p.FixedBuffer[0];
+                    alias = ref p.FixedBuffer[1];
+                }
+                static void Read(in int value) { }
+                static void ReadReference(ref readonly int value) { }
+            }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_primary_parameter_mutable_struct_field_fixed_buffer_element_readonly_references_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C([ReadOnly] Outer p)
+            {
+                void M()
+                {
+                    Read(in p.MutableFieldInStruct.FixedBuffer[0]);
+                    ReadReference(ref p.MutableFieldInStruct.FixedBuffer[0]);
+                    ReadReference(in p.MutableFieldInStruct.FixedBuffer[0]);
+                    ref readonly int alias = ref p.MutableFieldInStruct.FixedBuffer[0];
+                    alias = ref p.MutableFieldInStruct.FixedBuffer[1];
+                }
+                static void Read(in int value) { }
+                static void ReadReference(ref readonly int value) { }
+            }
+            struct Outer { public S MutableFieldInStruct; }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_primary_parameter_inline_array_element_fixed_buffer_element_readonly_references_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            using System.Runtime.CompilerServices;
+            unsafe class C([ReadOnly] Buffer p)
+            {
+                void M()
+                {
+                    Read(in p[0].FixedBuffer[0]);
+                    ReadReference(ref p[0].FixedBuffer[0]);
+                    ReadReference(in p[0].FixedBuffer[0]);
+                    ref readonly int alias = ref p[0].FixedBuffer[0];
+                    alias = ref p[0].FixedBuffer[1];
+                }
+                static void Read(in int value) { }
+                static void ReadReference(ref readonly int value) { }
+            }
+            [InlineArray(2)]
+            struct Buffer { private S element; }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
             """);
     }
 
@@ -982,6 +1198,69 @@ public class RefTakingTests : Framework.AnalyzerTests<ReadOnlyParameterMutationA
             }
             ref struct Outer { public ref Inner MutableRefFieldInStruct; }
             struct Inner { public int MutableFieldInStruct; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_parameter_ref_field_fixed_buffer_element_writable_references_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] Outer p)
+                {
+                    Mutate(ref p.MutableRefFieldInStruct.FixedBuffer[0]);
+                    Initialize(out p.MutableRefFieldInStruct.FixedBuffer[0]);
+                    ref int alias = ref p.MutableRefFieldInStruct.FixedBuffer[0];
+                }
+                static void Mutate(ref int value) { }
+                static void Initialize(out int value) => value = 1;
+            }
+            ref struct Outer { public ref S MutableRefFieldInStruct; }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_parameter_ref_field_fixed_buffer_element_ref_local_reassignment_rhs_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] Outer p)
+                {
+                    int other = 0;
+                    ref int alias = ref other;
+                    alias = ref p.MutableRefFieldInStruct.FixedBuffer[0];
+                }
+            }
+            ref struct Outer { public ref S MutableRefFieldInStruct; }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_parameter_ref_field_fixed_buffer_element_readonly_references_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] Outer p)
+                {
+                    Read(in p.MutableRefFieldInStruct.FixedBuffer[0]);
+                    ReadReference(ref p.MutableRefFieldInStruct.FixedBuffer[0]);
+                    ReadReference(in p.MutableRefFieldInStruct.FixedBuffer[0]);
+                    ref readonly int alias = ref p.MutableRefFieldInStruct.FixedBuffer[0];
+                    alias = ref p.MutableRefFieldInStruct.FixedBuffer[1];
+                }
+                static void Read(in int value) { }
+                static void ReadReference(ref readonly int value) { }
+            }
+            ref struct Outer { public ref S MutableRefFieldInStruct; }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
             """);
     }
 

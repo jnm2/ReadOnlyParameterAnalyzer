@@ -91,6 +91,118 @@ public class PointerTests : Framework.AnalyzerTests<ReadOnlyParameterMutationAna
     }
 
     [Test]
+    public async Task Pointer_allowed_to_readonly_primary_parameter_fixed_buffer_element()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C([ReadOnly] S p)
+            {
+                unsafe void M()
+                {
+                    fixed (int* ptr = &p.FixedBuffer[0])
+                    {
+                        *ptr = 5;
+                    }
+                    fixed (int* ptr = p.FixedBuffer)
+                    {
+                        ptr[0] = 6;
+                    }
+                }
+            }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """);
+    }
+
+    [Test]
+    public async Task Pointer_allowed_to_readonly_regular_parameter_fixed_buffer_element()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                unsafe void M([ReadOnly] S p)
+                {
+                    int* ptr = &p.FixedBuffer[0];
+                    *ptr = 5;
+                    int* buffer = p.FixedBuffer;
+                    buffer[0] = 6;
+                }
+            }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """);
+    }
+
+    [Test]
+    public async Task Pointer_allowed_to_readonly_parameter_struct_fixed_buffer_field_element()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C([ReadOnly] S p)
+            {
+                unsafe void M()
+                {
+                    fixed (int* ptr = &p.MutableFieldInStruct.FixedBuffer[0])
+                    {
+                        *ptr = 5;
+                    }
+                    fixed (int* ptr = p.MutableFieldInStruct.FixedBuffer)
+                    {
+                        ptr[0] = 6;
+                    }
+                }
+            }
+            struct S { public S2 MutableFieldInStruct; }
+            unsafe struct S2 { public fixed int FixedBuffer[2]; }
+            """);
+    }
+
+    [Test]
+    public async Task Pointer_allowed_to_readonly_parameter_ref_field_fixed_buffer_element()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            class C
+            {
+                unsafe void M([ReadOnly] S p)
+                {
+                    int* ptr = &p.MutableRefFieldInStruct.FixedBuffer[0];
+                    *ptr = 5;
+                    int* buffer = p.MutableRefFieldInStruct.FixedBuffer;
+                    buffer[0] = 6;
+                }
+            }
+            ref struct S { public ref S2 MutableRefFieldInStruct; }
+            unsafe struct S2 { public fixed int FixedBuffer[2]; }
+            """);
+    }
+
+    [Test]
+    public async Task Pointer_allowed_to_readonly_parameter_inline_array_element_fixed_buffer_element()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            using System.Runtime.CompilerServices;
+            class C([ReadOnly] Buffer p)
+            {
+                unsafe void M()
+                {
+                    fixed (int* ptr = &p[0].FixedBuffer[0])
+                    {
+                        *ptr = 5;
+                    }
+                    fixed (int* ptr = p[0].FixedBuffer)
+                    {
+                        ptr[0] = 6;
+                    }
+                }
+            }
+            [InlineArray(2)]
+            struct Buffer { private S element; }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """);
+    }
+
+    [Test]
     public async Task Pointer_allowed_to_readonly_parameter_nested_inline_array_element()
     {
         await DefaultConfig.RunTestAsync("""
@@ -232,6 +344,63 @@ public class PointerTests : Framework.AnalyzerTests<ReadOnlyParameterMutationAna
             }
             [InlineArray(2)]
             struct Buffer { private int element; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_pointer_parameter_fixed_buffer_element_assignments_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] S* p)
+                {
+                    p->FixedBuffer[0] = 5;
+                    (*p).FixedBuffer[0] = 6;
+                    p[0].FixedBuffer[0] = 7;
+                }
+            }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_pointer_parameter_struct_fixed_buffer_field_element_assignments_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] S* p)
+                {
+                    p->MutableFieldInStruct.FixedBuffer[0] = 5;
+                    (*p).MutableFieldInStruct.FixedBuffer[0] = 6;
+                    p[0].MutableFieldInStruct.FixedBuffer[0] = 7;
+                }
+            }
+            struct S { public S2 MutableFieldInStruct; }
+            unsafe struct S2 { public fixed int FixedBuffer[2]; }
+            """);
+    }
+
+    [Test]
+    public async Task ReadOnly_pointer_parameter_inline_array_element_fixed_buffer_element_assignments_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            using System.Runtime.CompilerServices;
+            unsafe class C
+            {
+                void M([ReadOnly] Buffer* p)
+                {
+                    (*p)[0].FixedBuffer[0] = 5;
+                    p[0][0].FixedBuffer[0] = 6;
+                }
+            }
+            [InlineArray(2)]
+            struct Buffer { private S element; }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
             """);
     }
 

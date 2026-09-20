@@ -138,6 +138,21 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
     }
 
     [Test]
+    public async Task ReadOnly_primary_parameter_fixed_buffer_element_simple_assignment_in_method_body()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C([ReadOnly] S p)
+            {
+                void M() => {|#1:p|}.FixedBuffer[0] = 5;
+            }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p.FixedBuffer[0]' which is stored inline within 'p'"));
+    }
+
+    [Test]
     public async Task ReadOnly_primary_parameter_mutable_struct_field_simple_assignment_in_method_body()
     {
         await DefaultConfig.RunTestAsync("""
@@ -190,6 +205,24 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
     }
 
     [Test]
+    public async Task ReadOnly_primary_parameter_inline_array_element_fixed_buffer_element_simple_assignment_in_method_body()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            using System.Runtime.CompilerServices;
+            unsafe class C([ReadOnly] Buffer p)
+            {
+                void M() => {|#1:p|}[0].FixedBuffer[0] = 5;
+            }
+            [InlineArray(2)]
+            struct Buffer { private S element; }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p[0].FixedBuffer[0]' which is stored inline within 'p'"));
+    }
+
+    [Test]
     public async Task ReadOnly_primary_parameter_struct_inline_array_field_element_simple_assignment_in_method_body()
     {
         await DefaultConfig.RunTestAsync("""
@@ -221,6 +254,22 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             """,
             Diagnostic().WithLocation(1).WithMessage(
                 "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p.MutableFieldInStruct.MutableFieldInStruct2' which is stored inline within 'p'"));
+    }
+
+    [Test]
+    public async Task ReadOnly_primary_parameter_mutable_struct_field_fixed_buffer_element_simple_assignment_in_method_body()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C([ReadOnly] Outer p)
+            {
+                void M() => {|#1:p|}.MutableFieldInStruct.FixedBuffer[0] = 5;
+            }
+            struct Outer { public S MutableFieldInStruct; }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p.MutableFieldInStruct.FixedBuffer[0]' which is stored inline within 'p'"));
     }
 
     [Test]
@@ -544,6 +593,20 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
     }
 
     [Test]
+    public async Task ReadOnly_regular_parameter_ref_field_fixed_buffer_element_simple_assignment_allowed()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] Outer p) => p.MutableRefFieldInStruct.FixedBuffer[0] = 5;
+            }
+            ref struct Outer { public ref S MutableRefFieldInStruct; }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """);
+    }
+
+    [Test]
     public async Task ReadOnly_primary_parameter_simple_assignment_in_field_initializer()
     {
         await DefaultConfig.RunTestAsync("""
@@ -686,6 +749,21 @@ public class AssignmentTests : Framework.AnalyzerTests<ReadOnlyParameterMutation
             """,
             Diagnostic().WithLocation(1).WithMessage(
                 "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment"));
+    }
+
+    [Test]
+    public async Task ReadOnly_regular_parameter_fixed_buffer_element_simple_assignment()
+    {
+        await DefaultConfig.RunTestAsync("""
+            using Instrumental.Annotations;
+            unsafe class C
+            {
+                void M([ReadOnly] S p) => {|#1:p|}.FixedBuffer[0] = 5;
+            }
+            unsafe struct S { public fixed int FixedBuffer[2]; }
+            """,
+            Diagnostic().WithLocation(1).WithMessage(
+                "Parameter 'p' is marked as readonly via [ReadOnly] on the parameter declaration, but it is possibly mutated by '=' assignment to 'p.FixedBuffer[0]' which is stored inline within 'p'"));
     }
 
     [Test]

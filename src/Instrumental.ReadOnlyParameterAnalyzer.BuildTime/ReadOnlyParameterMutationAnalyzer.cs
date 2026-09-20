@@ -130,6 +130,11 @@ public sealed class ReadOnlyParameterMutationAnalyzer : DiagnosticAnalyzer
         {
             AnalyzeMutationTarget(context, inlineArrayAccess.Instance, mutationDescription, isRefAssignment: false, inlineTarget: inlineTarget ?? target);
         }
+        else if (target is { Kind: OperationKind.None, Syntax: ElementAccessExpressionSyntax }
+            && target.ChildOperations.FirstOrDefault() is IFieldReferenceOperation { Field.IsFixedSizeBuffer: true } fixedBufferReference)
+        {
+            AnalyzeMutationTarget(context, fixedBufferReference, mutationDescription, isRefAssignment: false, inlineTarget: inlineTarget ?? target);
+        }
         else if (IsReadOnlyParameterReference(target, out var diagnosticCreator)
             && (isRefAssignment || diagnosticCreator.ParameterReference.Parameter.RefKind == RefKind.None))
         {
